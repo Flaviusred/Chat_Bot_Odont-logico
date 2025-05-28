@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Form, Depends, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.auth import try_login, create_session, COOKIE_NAME, require_login
-from app.services import gestor, humano
+from app.services import gestor, humano, agenda
 from app.services.whatsapp import enviar_mensagem
 
 templates = Jinja2Templates(directory="app/templates")
@@ -39,6 +39,48 @@ def dashboard(request: Request, user=Depends(require_login)):
         "user": user
     })
 
+@gestor_router.get("/agenda", response_class=HTMLResponse)
+def agenda_page(request: Request, usuario: str = "", data_ini: str = "", data_fim: str = "", user=Depends(require_login)):
+    ags = agenda.AgendaService.listar_agendamentos(
+        usuario=usuario,
+        data_ini=data_ini if data_ini else None,
+        data_fim=data_fim if data_fim else None
+    )
+    return templates.TemplateResponse("agenda.html", {
+        "request": request,
+        "agendamentos": ags,
+        "user": user,
+        "filtros": {"usuario": usuario, "data_ini": data_ini, "data_fim": data_fim}
+    })
+
+@gestor_router.post("/agenda/adicionar")
+def adicionar_agendamento(request: Request, usuario: str = Form(...), tipo: str = Form(...), horario: str = Form(...), periodo: str = Form(...), user=Depends(require_login)):
+    agenda.AgendaService.criar({
+        "usuario": usuario,
+        "tipo": tipo,
+        "data": horario,
+        "periodo": periodo
+    })
+    return RedirectResponse("/agenda", status_code=302)
+
+@gestor_router.post("/agenda/cancelar")
+def cancelar_agendamento(request: Request, agendamento_id: str = Form(...), user=Depends(require_login)):
+    agenda.AgendaService.cancelar(agendamento_id)
+    return RedirectResponse("/agenda", status_code=302)
+
+@gestor_router.get("/agenda/editar/{agendamento_id}", response_class=HTMLResponse)
+def editar_agendamento_page(request: Request, agendamento_id: str, user=Depends(require_login)):
+    agendamento = agenda.AgendaService.obter(agendamento_id)
+    return templates.TemplateResponse("editar_agendamento.html", {
+        "request": request,
+        "agendamento": agendamento
+    })
+
+@gestor_router.post("/agenda/editar/{agendamento_id}")
+def editar_agendamento(agendamento_id: str, usuario: str = Form(...), tipo: str = Form(...), data: str = Form(...), periodo: str = Form(...), user=Depends(require_login)):
+    agenda.AgendaService.editar(agendamento_id, usuario, data, periodo, tipo)
+    return RedirectResponse("/agenda", status_code=302)
+
 @gestor_router.get("/conversa/{usuario}", response_class=HTMLResponse)
 def conversa_usuario(request: Request, usuario: str, user=Depends(require_login)):
     conversas = [c for c in gestor.listar_conversas() if c["usuario"] == usuario]
@@ -59,4 +101,3 @@ def responder_usuario(request: Request, usuario: str, mensagem: str = Form(...),
 def finalizar_usuario(usuario: str, user=Depends(require_login)):
     humano.finalizar_atendimento(usuario)
     return RedirectResponse("/dashboard", status_code=302)
-

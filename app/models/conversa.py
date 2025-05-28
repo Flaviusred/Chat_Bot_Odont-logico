@@ -1,10 +1,8 @@
-from pymongo import MongoClient
+from app.database import db
 
-client = MongoClient("mongodb://localhost:27017/")
-db = client["odontoclin"]
 conversas = db["conversas"]
 
-class Conversa:
+class ConversaModel:
     @staticmethod
     def criar(usuario, msg_usuario, resposta_bot):
         conversas.insert_one({
@@ -12,6 +10,7 @@ class Conversa:
             "mensagem": msg_usuario,
             "resposta": resposta_bot
         })
+
     @staticmethod
     def todos():
         return list(conversas.find())

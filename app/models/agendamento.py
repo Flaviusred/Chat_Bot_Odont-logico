@@ -1,20 +1,40 @@
-from pymongo import MongoClient
+from app.database import db
+from bson import ObjectId
 
-client = MongoClient("mongodb://localhost:27017/")
-db = client["odontoclin"]
 agendamentos = db["agendamentos"]
 
-class Agendamento:
+class AgendamentoModel:
     @staticmethod
     def criar(data):
-        agendamentos.insert_one(data)
+        return agendamentos.insert_one(data)
+
     @staticmethod
-    def buscar_proximo(usuario):
-        return agendamentos.find_one({"usuario": usuario}, sort=[('data', 1)])
+    def buscar_proximo(usuario, now_iso):
+        return agendamentos.find_one(
+            {"usuario": usuario, "data": {"$gte": now_iso}},
+            sort=[('data', 1)]
+        )
+
     @staticmethod
-    def cancelar(usuario, data):
-        agendamentos.delete_one({"usuario": usuario, "data": data})
+    def cancelar(_id):
+        return agendamentos.delete_one({"_id": ObjectId(_id)})
+
     @staticmethod
     def contar_por_periodo(data, periodo):
-        """Conta quantos agendamentos existem para determinada data e período"""
         return agendamentos.count_documents({"data": data, "periodo": periodo})
+
+    @staticmethod
+    def listar(filtro=None):
+        filtro = filtro or {}
+        return list(agendamentos.find(filtro).sort("data", 1))
+
+    @staticmethod
+    def editar(_id, update):
+        return agendamentos.update_one(
+            {"_id": ObjectId(_id)},
+            {"$set": update}
+        )
+
+    @staticmethod
+    def obter(_id):
+        return agendamentos.find_one({"_id": ObjectId(_id)})

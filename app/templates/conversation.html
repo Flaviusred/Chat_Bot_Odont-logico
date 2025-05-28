@@ -22,10 +22,26 @@
     <div class="container main-content">
         <h3 class="mb-4">Conversas WhatsApp</h3>
         <div class="chat-box">
-            <div class="msg-block"><b class="msg-user">Você:</b> Olá, gostaria de agendar uma consulta.</div>
-            <div class="msg-block"><b class="msg-bot">Bot:</b> Qual atendimento deseja agendar?<br>1. Consulta<br>2. Limpeza<br>3. Clareamento<br>4. Canal<br>5. Extração</div>
-            <!-- Exemplo estático, para produção busque as mensagens do banco ou Twilio -->
+            {% if conversas %}
+                {% for c in conversas %}
+                    <div class="msg-block">
+                        <b class="msg-user">Usuário:</b> {{c.mensagem}}
+                    </div>
+                    <div class="msg-block">
+                        <b class="msg-bot">Bot:</b> {{c.resposta}}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="msg-block text-muted">Nenhuma conversa encontrada para este usuário.</div>
+            {% endif %}
         </div>
+        <form method="post" action="/conversa/{{usuario}}/responder" class="mt-3 d-flex">
+            <input type="text" name="mensagem" class="form-control me-2" placeholder="Responder ao usuário..." required>
+            <button class="btn btn-success">Enviar</button>
+        </form>
+        <form method="post" action="/conversa/{{usuario}}/finalizar" class="mt-2">
+            <button class="btn btn-warning">Finalizar atendimento</button>
+        </form>
     </div>
 </body>
 </html>

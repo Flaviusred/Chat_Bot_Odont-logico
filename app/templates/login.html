@@ -19,6 +19,9 @@
                 <label class="form-label">Senha</label>
                 <input type="password" name="password" class="form-control" required>
             </div>
+            {% if error %}
+                <div class="alert alert-danger text-center">{{error}}</div>
+            {% endif %}
             <button class="btn btn-primary w-100 mt-3">Entrar</button>
         </form>
     </div>

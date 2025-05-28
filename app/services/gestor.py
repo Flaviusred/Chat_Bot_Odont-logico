@@ -1,7 +1,7 @@
-from app.models.conversa import Conversa
+from app.models.conversa import ConversaModel
 
 def registrar_conversa(usuario, msg_usuario, resposta_bot):
-    Conversa.criar(usuario, msg_usuario, resposta_bot)
+    ConversaModel.criar(usuario, msg_usuario, resposta_bot)
 
 def listar_conversas():
-    return Conversa.todos()
+    return ConversaModel.todos()

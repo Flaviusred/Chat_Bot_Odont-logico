@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Request
 from app.services import whatsapp, agenda, ia, gestor, humano
 
-
 router = APIRouter()
 
 @router.post("/webhook")

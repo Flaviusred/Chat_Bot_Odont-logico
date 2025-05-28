@@ -1,4 +1,4 @@
-from app.database import db
+from app.models.agendamento import AgendamentoModel
 from datetime import datetime
 from bson import ObjectId
 
@@ -11,13 +11,20 @@ TIPOS_ATENDIMENTO = [
     "Extração"
 ]
 
-class Agendamento:
+# Contextos de usuário (pode ser migrado para Redis para produção)
+contextos = {}
+
+def parse_data_iso(data):
+    """Converte DD/MM/AAAA para YYYY-MM-DD"""
+    try:
+        return datetime.strptime(data, "%d/%m/%Y").strftime("%Y-%m-%d")
+    except Exception:
+        return data
+
+class AgendaService:
     @staticmethod
     def criar(dados):
-        try:
-            data_iso = datetime.strptime(dados["data"], "%d/%m/%Y").strftime("%Y-%m-%d")
-        except Exception:
-            data_iso = dados["data"]
+        data_iso = parse_data_iso(dados["data"])
         ag = {
             "usuario": dados["usuario"],
             "tipo": dados["tipo"],
@@ -25,29 +32,17 @@ class Agendamento:
             "periodo": dados["periodo"],
             "cadastrado_em": datetime.now().strftime("%Y-%m-%d %H:%M")
         }
-        db.agendamentos.insert_one(ag)
+        AgendamentoModel.criar(ag)
 
     @staticmethod
     def contar_por_periodo(data, periodo):
-        try:
-            data_iso = datetime.strptime(data, "%d/%m/%Y").strftime("%Y-%m-%d")
-        except Exception:
-            data_iso = data
-        return db.agendamentos.count_documents({
-            "data": data_iso,
-            "periodo": periodo
-        })
+        data_iso = parse_data_iso(data)
+        return AgendamentoModel.contar_por_periodo(data_iso, periodo)
 
     @staticmethod
     def buscar_proximo(usuario):
         now = datetime.now().strftime("%Y-%m-%d")
-        ag = db.agendamentos.find_one(
-            {
-                "usuario": usuario,
-                "data": {"$gte": now}
-            },
-            sort=[("data", 1)]
-        )
+        ag = AgendamentoModel.buscar_proximo(usuario, now)
         if ag:
             ag["id"] = str(ag["_id"])
         return ag
@@ -65,41 +60,31 @@ class Agendamento:
                 filtro["data"]["$lte"] = data_fim
             if not filtro["data"]:
                 del filtro["data"]
-        ags = list(db.agendamentos.find(filtro).sort("data", 1))
+        ags = AgendamentoModel.listar(filtro)
         for a in ags:
             a["id"] = str(a["_id"])
         return ags
 
     @staticmethod
     def cancelar(agendamento_id):
-        db.agendamentos.delete_one({"_id": ObjectId(agendamento_id)})
+        AgendamentoModel.cancelar(agendamento_id)
 
     @staticmethod
     def editar(agendamento_id, usuario, data, periodo, tipo):
-        try:
-            data_iso = datetime.strptime(data, "%d/%m/%Y").strftime("%Y-%m-%d")
-        except Exception:
-            data_iso = data
-        db.agendamentos.update_one(
-            {"_id": ObjectId(agendamento_id)},
-            {"$set": {
-                "usuario": usuario,
-                "data": data_iso,
-                "periodo": periodo,
-                "tipo": tipo
-            }}
-        )
+        data_iso = parse_data_iso(data)
+        AgendamentoModel.editar(agendamento_id, {
+            "usuario": usuario,
+            "data": data_iso,
+            "periodo": periodo,
+            "tipo": tipo
+        })
 
     @staticmethod
     def obter(agendamento_id):
-        a = db.agendamentos.find_one({"_id": ObjectId(agendamento_id)})
+        a = AgendamentoModel.obter(agendamento_id)
         if a:
             a["id"] = str(a["_id"])
         return a
-
-# Fluxos interativos WhatsApp
-
-contextos = {}
 
 def gerar_menu():
     opcoes = "\n".join([f"{i+1}. {tipo}" for i, tipo in enumerate(TIPOS_ATENDIMENTO)])
@@ -171,13 +156,13 @@ def fluxo_agendamento(usuario, msg):
         else:
             return "Escolha 1 para Manhã ou 2 para Tarde."
         ctx["periodo"] = periodo
-        qtd = Agendamento.contar_por_periodo(ctx["data"], periodo)
+        qtd = AgendaService.contar_por_periodo(ctx["data"], periodo)
         if qtd >= LIMITE_POR_PERIODO:
             return (
                 f"O período {periodo} em {ctx['data']} está cheio. "
                 "Deseja tentar outra data ou período? (Envie nova data ou 1/2 para período)"
             )
-        Agendamento.criar({
+        AgendaService.criar({
             "usuario": usuario,
             "tipo": ctx["tipo"],
             "data": ctx["data"],
@@ -195,9 +180,8 @@ def fluxo_agendamento(usuario, msg):
     return "Vamos recomeçar. Qual atendimento deseja?\n" + opcoes
 
 def fluxo_cancelamento(usuario, msg):
-    # Busca agendamentos futuros
     now = datetime.now().strftime("%Y-%m-%d")
-    ags = list(db.agendamentos.find({"usuario": usuario, "data": {"$gte": now}}).sort("data", 1))
+    ags = AgendaService.listar_agendamentos(usuario=usuario, data_ini=now)
     if not ags:
         return "Você não possui agendamentos futuros para cancelar."
     if usuario not in contextos or "cancelar_lista" not in contextos[usuario]:
@@ -212,8 +196,8 @@ def fluxo_cancelamento(usuario, msg):
             idx = int(msg.strip()) - 1
             ags = contextos[usuario]["cancelar_lista"]
             if 0 <= idx < len(ags):
-                _id = ags[idx]["_id"]
-                db.agendamentos.delete_one({"_id": _id})
+                _id = ags[idx]["id"]
+                AgendaService.cancelar(_id)
                 del contextos[usuario]
                 return "✅ Agendamento cancelado com sucesso."
             else:
@@ -222,7 +206,7 @@ def fluxo_cancelamento(usuario, msg):
             return "Por favor, envie apenas o número do agendamento para cancelar."
 
 def fluxo_verificacao(usuario):
-    agendamento = Agendamento.buscar_proximo(usuario)
+    agendamento = AgendaService.buscar_proximo(usuario)
     if agendamento:
         return (
             f"Seu próximo agendamento:\n"
