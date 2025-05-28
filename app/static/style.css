@@ -1,0 +1,37 @@
+body {
+    background: #f8fafb;
+}
+.login-box {
+    max-width: 400px;
+    margin: 80px auto;
+    padding: 32px 28px 24px 28px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+}
+.navbar-brand { 
+    font-weight: bold; 
+}
+.main-content { 
+    margin-top: 30px; 
+}
+.card-list { 
+    margin-bottom: 30px; 
+}
+.chat-box {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 24px;
+    min-height: 300px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+.msg-user { 
+    color: #343a40; 
+}
+.msg-bot { 
+    color: #0d6efd; 
+}
+.msg-block { 
+    margin-bottom: 18px; 
+}

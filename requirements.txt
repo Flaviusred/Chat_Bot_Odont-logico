@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+jinja2
+pymongo
+requests
+openai
+python-dotenv
+passlib[bcrypt]
+itsdangerous
+twilio
