@@ -4,8 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from app.gestor_routes import gestor_router
 from app.services.whatsapp import enviar_mensagem
 from app.services import agenda
-
+from dotenv import load_dotenv
+load_dotenv()
 app = FastAPI()
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(gestor_router)
 

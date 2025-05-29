@@ -9,4 +9,4 @@ python-dotenv
 passlib[bcrypt]
 itsdangerous
 twilio
-bson
+bcrypt<4.0.0
