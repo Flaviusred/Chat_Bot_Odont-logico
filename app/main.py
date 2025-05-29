@@ -63,7 +63,7 @@ async def webhook_twilio(request: Request):
         else:
             enviar_mensagem(from_number, resposta)
         return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
-
+    
     enviar_mensagem(from_number, MENU_OPCOES)
     contextos[usuario] = {"etapa": "menu"}
     return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
