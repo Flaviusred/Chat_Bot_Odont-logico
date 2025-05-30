@@ -1,8 +1,6 @@
 from app.models.agendamento import AgendamentoModel
 from datetime import datetime
-from bson import ObjectId
 
-LIMITE_POR_PERIODO = 5
 TIPOS_ATENDIMENTO = [
     "Consulta",
     "Limpeza",
@@ -11,80 +9,29 @@ TIPOS_ATENDIMENTO = [
     "Extração"
 ]
 
-# Contextos de usuário (pode ser migrado para Redis para produção)
+HORARIOS_MANHA = ["08:00", "09:00", "10:00", "11:00"]
+HORARIOS_TARDE = ["14:00", "15:00", "16:00", "17:00"]
+
 contextos = {}
 
 def parse_data_iso(data):
-    """Converte DD/MM/AAAA para YYYY-MM-DD"""
     try:
         return datetime.strptime(data, "%d/%m/%Y").strftime("%Y-%m-%d")
     except Exception:
         return data
 
-class AgendaService:
-    @staticmethod
-    def criar(dados):
-        data_iso = parse_data_iso(dados["data"])
-        ag = {
-            "usuario": dados["usuario"],
-            "tipo": dados["tipo"],
-            "data": data_iso,
-            "periodo": dados["periodo"],
-            "cadastrado_em": datetime.now().strftime("%Y-%m-%d %H:%M")
-        }
-        AgendamentoModel.criar(ag)
+def dia_semana(data_str):
+    return datetime.strptime(data_str, "%d/%m/%Y").weekday()
 
-    @staticmethod
-    def contar_por_periodo(data, periodo):
-        data_iso = parse_data_iso(data)
-        return AgendamentoModel.contar_por_periodo(data_iso, periodo)
+def horarios_ocupados(data, turno):
+    data_iso = parse_data_iso(data)
+    ags = AgendamentoModel.listar({"data": data_iso, "turno": turno})
+    return [a.get("horario") for a in ags if "horario" in a]
 
-    @staticmethod
-    def buscar_proximo(usuario):
-        now = datetime.now().strftime("%Y-%m-%d")
-        ag = AgendamentoModel.buscar_proximo(usuario, now)
-        if ag:
-            ag["id"] = str(ag["_id"])
-        return ag
-
-    @staticmethod
-    def listar_agendamentos(usuario=None, data_ini=None, data_fim=None):
-        filtro = {}
-        if usuario:
-            filtro["usuario"] = {"$regex": usuario, "$options": "i"}
-        if data_ini or data_fim:
-            filtro["data"] = {}
-            if data_ini:
-                filtro["data"]["$gte"] = data_ini
-            if data_fim:
-                filtro["data"]["$lte"] = data_fim
-            if not filtro["data"]:
-                del filtro["data"]
-        ags = AgendamentoModel.listar(filtro)
-        for a in ags:
-            a["id"] = str(a["_id"])
-        return ags
-
-    @staticmethod
-    def cancelar(agendamento_id):
-        AgendamentoModel.cancelar(agendamento_id)
-
-    @staticmethod
-    def editar(agendamento_id, usuario, data, periodo, tipo):
-        data_iso = parse_data_iso(data)
-        AgendamentoModel.editar(agendamento_id, {
-            "usuario": usuario,
-            "data": data_iso,
-            "periodo": periodo,
-            "tipo": tipo
-        })
-
-    @staticmethod
-    def obter(agendamento_id):
-        a = AgendamentoModel.obter(agendamento_id)
-        if a:
-            a["id"] = str(a["_id"])
-        return a
+def horarios_disponiveis(data, turno):
+    todos = HORARIOS_MANHA if turno == "manha" else HORARIOS_TARDE
+    ocupados = horarios_ocupados(data, turno)
+    return [h for h in todos if h not in ocupados]
 
 def gerar_menu():
     opcoes = "\n".join([f"{i+1}. {tipo}" for i, tipo in enumerate(TIPOS_ATENDIMENTO)])
@@ -93,31 +40,39 @@ def gerar_menu():
         "Como posso ajudar?\n"
         "1️⃣ Agendar atendimento\n"
         "2️⃣ Cancelar agendamento\n"
-        "3️⃣ Verificar meu agendamento\n\n"
+        "3️⃣ Verificar meu agendamento\n"
+        "4️⃣ Falar com o atendimento\n\n"
         "Ou escolha um serviço:\n"
         f"{opcoes}\n"
         "*Responda com o número da opção desejada.*"
     )
 
-def detectar_fluxo(msg):
-    if not msg:
-        return "ia", {}
-    msg_lower = msg.lower()
-    if "agendar" in msg_lower or msg_lower == "1":
-        return "agendamento", {}
-    if "cancelar" in msg_lower or msg_lower == "2":
-        return "cancelamento", {}
-    if "meu agendamento" in msg_lower or "verificar agendamento" in msg_lower or msg_lower == "3":
-        return "verificacao", {}
-    return "ia", {}
-
 def fluxo_agendamento(usuario, msg):
-    if usuario not in contextos:
-        contextos[usuario] = {"etapa": 0}
-    ctx = contextos[usuario]
+    if usuario not in contextos or contextos[usuario].get("etapa") is None:
+        contextos[usuario] = {"etapa": "nome", "dados": {}}
+        return "Para iniciarmos o agendamento, por favor informe seu nome completo:"
 
-    if ctx["etapa"] == 0:
-        ctx["etapa"] = 1
+    ctx = contextos[usuario]
+    dados = ctx["dados"]
+
+    if ctx["etapa"] == "nome":
+        dados["nome"] = msg.strip()
+        ctx["etapa"] = "idade"
+        return "Qual sua idade?"
+
+    if ctx["etapa"] == "idade":
+        if not msg.isdigit() or int(msg) < 0:
+            return "Por favor, informe a idade em números."
+        dados["idade"] = msg.strip()
+        ctx["etapa"] = "telefone"
+        return "Qual seu telefone para contato?"
+
+    if ctx["etapa"] == "telefone":
+        telefone = ''.join(filter(str.isdigit, msg))
+        if len(telefone) < 10:
+            return "Por favor, informe um telefone válido (com DDD)."
+        dados["telefone"] = telefone
+        ctx["etapa"] = "tipo"
         opcoes = "\n".join(f"{i+1}. {tipo}" for i, tipo in enumerate(TIPOS_ATENDIMENTO))
         return (
             "Qual atendimento deseja agendar?\n" +
@@ -125,70 +80,117 @@ def fluxo_agendamento(usuario, msg):
             "\n*Responda apenas com o número do atendimento.*"
         )
 
-    if ctx["etapa"] == 1:
+    if ctx["etapa"] == "tipo":
         try:
             idx = int(msg.strip()) - 1
             if 0 <= idx < len(TIPOS_ATENDIMENTO):
-                ctx["tipo"] = TIPOS_ATENDIMENTO[idx]
-                ctx["etapa"] = 2
+                dados["tipo"] = TIPOS_ATENDIMENTO[idx]
+                ctx["etapa"] = "data"
                 return "Para qual data deseja agendar? (formato: DD/MM/AAAA)"
             else:
                 return "Opção inválida. Escolha uma das opções acima."
         except:
             return "Por favor, responda apenas com o número do atendimento desejado."
 
-    if ctx["etapa"] == 2:
-        # Validação simples de data
+    if ctx["etapa"] == "data":
         try:
             datetime.strptime(msg.strip(), "%d/%m/%Y")
+            dados["data"] = msg.strip()
         except Exception:
             return "Por favor, informe a data no formato DD/MM/AAAA."
-        ctx["data"] = msg.strip()
-        ctx["etapa"] = 3
-        return "Qual período você prefere?\n1. Manhã\n2. Tarde\n*Responda 1 ou 2.*"
+        dsemana = dia_semana(dados["data"])
+        if dsemana == 6:  # domingo
+            return "O consultório não funciona aos domingos. Por favor, escolha outro dia."
+        ctx["etapa"] = "turno"
+        if dsemana == 5:
+            return "Sábado só temos turno da manhã (08:00-12:00).\nResponda 1 para manhã."
+        else:
+            return "Qual turno?\n1. Manhã (08:00-12:00)\n2. Tarde (14:00-18:00)\n*Responda 1 ou 2.*"
 
-    if ctx["etapa"] == 3:
-        periodo = None
+    if ctx["etapa"] == "turno":
+        dsemana = dia_semana(dados["data"])
+        if dsemana == 5 and msg.strip() != "1":
+            return "Sábado só temos turno da manhã. Por favor, escolha 1."
         if msg.strip() == "1":
-            periodo = "manhã"
+            turno = "manha"
         elif msg.strip() == "2":
-            periodo = "tarde"
+            turno = "tarde"
         else:
             return "Escolha 1 para Manhã ou 2 para Tarde."
-        ctx["periodo"] = periodo
-        qtd = AgendaService.contar_por_periodo(ctx["data"], periodo)
-        if qtd >= LIMITE_POR_PERIODO:
-            return (
-                f"O período {periodo} em {ctx['data']} está cheio. "
-                "Deseja tentar outra data ou período? (Envie nova data ou 1/2 para período)"
-            )
-        AgendaService.criar({
+        dados["turno"] = turno
+        disponiveis = horarios_disponiveis(dados["data"], turno)
+        if not disponiveis:
+            ctx["etapa"] = "data"
+            return "Nenhum horário disponível nesse turno. Escolha outra data."
+        horarios_msg = "\n".join(f"{i+1}. {h}" for i, h in enumerate(disponiveis))
+        ctx["etapa"] = "horario"
+        dados["horarios_disponiveis"] = disponiveis
+        return f"Escolha o horário:\n{horarios_msg}\nResponda o número do horário desejado."
+
+    if ctx["etapa"] == "horario":
+        try:
+            idx = int(msg.strip()) - 1
+            horario = dados["horarios_disponiveis"][idx]
+        except Exception:
+            return "Escolha inválida. Digite o número do horário desejado."
+        # Checa conflito de novo
+        if horario in horarios_ocupados(dados["data"], dados["turno"]):
+            return "Esse horário acabou de ser reservado. Escolha outro horário."
+        dados["horario"] = horario
+        ctx["etapa"] = "tipo_atendimento"
+        return "O atendimento será por convênio ou particular?"
+
+    if ctx["etapa"] == "tipo_atendimento":
+        if msg.lower() in ["convenio", "convênio"]:
+            ctx["etapa"] = "convenio_nome"
+            return "Qual o nome do convênio?"
+        elif msg.lower() == "particular":
+            del contextos[usuario]
+            return "Vou te direcionar para um atendente humano. Aguarde um momento."
+        else:
+            return "Por favor, responda 'convênio' ou 'particular'."
+
+    if ctx["etapa"] == "convenio_nome":
+        dados["convenio"] = msg.strip()
+        # Salva agendamento
+        ag = {
             "usuario": usuario,
-            "tipo": ctx["tipo"],
-            "data": ctx["data"],
-            "periodo": periodo
-        })
+            "nome": dados["nome"],
+            "idade": dados["idade"],
+            "telefone": dados["telefone"],
+            "tipo": dados["tipo"],
+            "data": parse_data_iso(dados["data"]),
+            "turno": dados["turno"],
+            "horario": dados["horario"],
+            "convenio": dados["convenio"],
+            "cadastrado_em": datetime.now().strftime("%Y-%m-%d %H:%M")
+        }
+        AgendamentoModel.criar(ag)
         del contextos[usuario]
         return (
             f"✅ Agendamento realizado!\n"
-            f"Atendimento: {ctx['tipo']}\n"
-            f"Data: {ctx['data']}\n"
-            f"Período: {periodo.capitalize()}"
+            f"Nome: {ag['nome']}\nTelefone: {ag['telefone']}\n"
+            f"Idade: {ag['idade']}\n"
+            f"Tipo: {ag['tipo']}\n"
+            f"Data: {dados['data']} {ag['horario']} ({'Manhã' if ag['turno']=='manha' else 'Tarde'})\n"
+            f"Convênio: {ag['convenio']}\n\n"
+            f"Deseja terminar o atendimento ou iniciar uma nova conversa?\n"
+            f"Responda 'menu' para iniciar nova conversa ou 'sair' para encerrar."
         )
-    contextos[usuario] = {"etapa": 0}
-    opcoes = "\n".join(f"{i+1}. {tipo}" for i, tipo in enumerate(TIPOS_ATENDIMENTO))
-    return "Vamos recomeçar. Qual atendimento deseja?\n" + opcoes
+
+    del contextos[usuario]
+    return "Fluxo perdido. Envie 'menu' para começar novamente."
 
 def fluxo_cancelamento(usuario, msg):
     now = datetime.now().strftime("%Y-%m-%d")
-    ags = AgendaService.listar_agendamentos(usuario=usuario, data_ini=now)
+    ags = AgendamentoModel.listar({"usuario": usuario, "data": {"$gte": now}})
     if not ags:
         return "Você não possui agendamentos futuros para cancelar."
     if usuario not in contextos or "cancelar_lista" not in contextos[usuario]:
         contextos[usuario] = {"etapa": "cancelar", "cancelar_lista": ags}
         resposta = "Seus agendamentos futuros:\n"
         for idx, ag in enumerate(ags):
-            resposta += f"{idx+1}. {ag['tipo']} em {ag['data']} ({ag['periodo']})\n"
+            resposta += f"{idx+1}. {ag.get('tipo','?')} em {ag.get('data','?')} ({ag.get('turno','?')} - {ag.get('horario','?')})\n"
         resposta += "Envie o número do agendamento que deseja cancelar."
         return resposta
     else:
@@ -196,8 +198,8 @@ def fluxo_cancelamento(usuario, msg):
             idx = int(msg.strip()) - 1
             ags = contextos[usuario]["cancelar_lista"]
             if 0 <= idx < len(ags):
-                _id = ags[idx]["id"]
-                AgendaService.cancelar(_id)
+                _id = str(ags[idx]["_id"])
+                AgendamentoModel.cancelar(_id)
                 del contextos[usuario]
                 return "✅ Agendamento cancelado com sucesso."
             else:
@@ -206,11 +208,15 @@ def fluxo_cancelamento(usuario, msg):
             return "Por favor, envie apenas o número do agendamento para cancelar."
 
 def fluxo_verificacao(usuario):
-    agendamento = AgendaService.buscar_proximo(usuario)
-    if agendamento:
+    now = datetime.now().strftime("%Y-%m-%d")
+    ags = AgendamentoModel.listar({"usuario": usuario, "data": {"$gte": now}})
+    if ags:
+        ag = ags[0]
         return (
             f"Seu próximo agendamento:\n"
-            f"Tipo: {agendamento.get('tipo','')}\n"
-            f"Data: {agendamento['data']} ({agendamento['periodo']})"
+            f"Nome: {ag.get('nome','')}\n"
+            f"Tipo: {ag.get('tipo','')}\n"
+            f"Data: {ag['data']} {ag.get('horario','')} ({'Manhã' if ag['turno']=='manha' else 'Tarde'})\n"
+            f"Convênio: {ag.get('convenio','')}"
         )
     return "Você não possui agendamentos futuros."
