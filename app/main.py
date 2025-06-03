@@ -1,18 +1,20 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from app.auth import auth_router
 from app.gestor_routes import gestor_router
 from app.painel_humano import painel_humano_router
 from app.services.whatsapp import enviar_mensagem
 from app.services import agenda, humano
 from dotenv import load_dotenv
+
 load_dotenv()
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.include_router(auth_router)
 app.include_router(gestor_router)
 app.include_router(painel_humano_router)
-
 contextos = agenda.contextos
 
 @app.post("/webhook")

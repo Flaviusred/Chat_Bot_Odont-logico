@@ -1,31 +1,29 @@
-from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.auth import require_login
-from app.services import humano
-from app.services.whatsapp import enviar_mensagem
+from app.models.atendimento import AtendimentoModel
 
 templates = Jinja2Templates(directory="app/templates")
 painel_humano_router = APIRouter()
 
 @painel_humano_router.get("/painel-humano", response_class=HTMLResponse)
-def painel_humano(request: Request, user=Depends(require_login)):
-    pendentes = humano.listar_atendimentos()
-    return templates.TemplateResponse("painel_humano.html", {"request": request, "pendentes": pendentes, "user": user})
+async def painel_humano(request: Request, user=Depends(require_login)):
+    pendentes = AtendimentoModel.todos_pendentes()
+    return templates.TemplateResponse("painel_humano.html", {"request": request, "user": user, "pendentes": pendentes})
 
 @painel_humano_router.get("/painel-humano/conversa/{usuario}", response_class=HTMLResponse)
-def conversa_usuario(request: Request, usuario: str, user=Depends(require_login)):
-    atendimento = humano.em_atendimento_humano(usuario)
+async def conversa_humano(request: Request, usuario: str, user=Depends(require_login)):
+    atendimento = AtendimentoModel.em_andamento(usuario)
     msgs = atendimento["mensagens"] if atendimento else []
-    return templates.TemplateResponse("conversa_humano.html", {"request": request, "usuario": usuario, "msgs": msgs, "user": user})
+    return templates.TemplateResponse("conversa_humano.html", {"request": request, "user": user, "usuario": usuario, "msgs": msgs})
 
 @painel_humano_router.post("/painel-humano/conversa/{usuario}/responder")
-def responder_usuario(usuario: str, mensagem: str = Form(...), user=Depends(require_login)):
-    humano.redirecionar_mensagem(usuario, f"Atendente: {mensagem}")
-    enviar_mensagem(usuario, mensagem)
-    return RedirectResponse(f"/painel-humano/conversa/{usuario}", status_code=302)
+async def responder_humano(request: Request, usuario: str, user=Depends(require_login), mensagem: str = Form(...)):
+    AtendimentoModel.registrar_mensagem(usuario, f"Atendente: {mensagem}")
+    return RedirectResponse(f"/painel-humano/conversa/{usuario}", status_code=303)
 
 @painel_humano_router.post("/painel-humano/conversa/{usuario}/finalizar")
-def finalizar_usuario(usuario: str, user=Depends(require_login)):
-    humano.finalizar_atendimento(usuario)
-    return RedirectResponse("/painel-humano", status_code=302)
+async def finalizar_humano(request: Request, usuario: str, user=Depends(require_login)):
+    AtendimentoModel.finalizar(usuario)
+    return RedirectResponse("/painel-humano", status_code=303)
