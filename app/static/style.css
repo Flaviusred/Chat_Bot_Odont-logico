@@ -1,37 +1,66 @@
 body {
-    background: #f8fafb;
+    background: #f5f7fa;
+    font-family: 'Segoe UI', 'Arial', sans-serif;
 }
-.login-box {
-    max-width: 400px;
-    margin: 80px auto;
-    padding: 32px 28px 24px 28px;
+.navbar {
+    box-shadow: 0 2px 18px rgba(0,0,0,0.08);
+    border-radius: 0 0 12px 12px;
+}
+.painel-card, .form-card, .chat-card, .login-box, .card {
+    border-radius: 16px;
+    box-shadow: 0 2px 18px rgba(0,0,0,0.08);
     background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+    border: none;
 }
-.navbar-brand { 
-    font-weight: bold; 
+.main-content { padding-top: 36px; margin-top: 0 !important; }
+.list-group-item, .painel-links li {
+    transition: background .2s;
+    border: none;
+    border-bottom: 1px solid #f1f3f8;
 }
-.main-content { 
-    margin-top: 30px; 
+.list-group-item:last-child, .painel-links li:last-child {
+    border-bottom: none;
 }
-.card-list { 
-    margin-bottom: 30px; 
+.list-group-item:hover, .painel-links li:hover, .card:hover {
+    background: #f1f3f8;
 }
+.icon-link {
+    font-size: 1.2rem;
+    margin-right: 12px;
+    color: #0d6efd;
+}
+.btn-atender { min-width: 110px; }
 .chat-box {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 24px;
-    min-height: 300px;
-    max-height: 500px;
+    background: #f3f6fa;
+    border-radius: 10px;
+    padding: 18px;
+    min-height: 220px;
+    max-height: 400px;
     overflow-y: auto;
 }
-.msg-user { 
-    color: #343a40; 
+.msg-block { margin-bottom: 15px; }
+.msg-user { color: #0d6efd; font-weight: 500; }
+.msg-bot, .msg-atendente { color: #16a085; }
+input:focus, textarea:focus, select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 4px #0d6efd33;
 }
-.msg-bot { 
-    color: #0d6efd; 
+.login-box {
+    max-width: 420px;
+    margin: 80px auto;
+    padding: 36px 32px 28px 32px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 18px rgba(0,0,0,0.08);
 }
-.msg-block { 
-    margin-bottom: 18px; 
+.card-header {
+    border-radius: 16px 16px 0 0;
+}
+.card-body {
+    background: #fff;
+    border-radius: 0 0 16px 16px;
+}
+@media (max-width: 600px) {
+    .painel-card, .form-card, .chat-card, .login-box, .card { padding: 10px !important; }
+    .main-content { padding-top: 18px; }
 }

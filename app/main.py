@@ -2,14 +2,16 @@ from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from app.gestor_routes import gestor_router
+from app.painel_humano import painel_humano_router
 from app.services.whatsapp import enviar_mensagem
-from app.services import agenda
+from app.services import agenda, humano
 from dotenv import load_dotenv
 load_dotenv()
 app = FastAPI()
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(gestor_router)
+app.include_router(painel_humano_router)
 
 contextos = agenda.contextos
 
@@ -22,13 +24,11 @@ async def webhook_twilio(request: Request):
 
     MENU_OPCOES = agenda.gerar_menu()
 
-    # Resetar contexto se iniciar ou enviar 'menu'
     if usuario not in contextos or msg_body.lower() in ["menu", "oi", "olá", "inicio", "start"]:
         contextos[usuario] = {"etapa": "menu"}
         enviar_mensagem(from_number, MENU_OPCOES)
         return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
 
-    # Encerrar atendimento se responder 'sair'
     if msg_body.lower() == "sair":
         if usuario in contextos:
             del contextos[usuario]
@@ -39,15 +39,18 @@ async def webhook_twilio(request: Request):
 
     if etapa == "menu":
         if msg_body == "1":
-            contextos[usuario] = {"etapa": None, "dados": {}}  # inicia fluxo novo
+            contextos[usuario] = {"etapa": None, "dados": {}}
             resposta = agenda.fluxo_agendamento(usuario, "")
         elif msg_body == "2":
             resposta = agenda.fluxo_cancelamento(usuario, "")
         elif msg_body == "3":
             resposta = agenda.fluxo_verificacao(usuario)
         elif msg_body == "4":
-            del contextos[usuario]
-            resposta = "Você será direcionado para o atendimento humano. Aguarde um momento."
+            contextos[usuario] = {"etapa": "humano"}
+            humano.registrar_pedido(usuario)
+            resposta = "Você será direcionado para o atendimento humano. Aguarde um momento enquanto um atendente assume a conversa. Para voltar ao menu, digite 'menu'."
+            enviar_mensagem(from_number, resposta)
+            return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
         elif msg_body in [str(i+1) for i in range(len(agenda.TIPOS_ATENDIMENTO))]:
             tipo = agenda.TIPOS_ATENDIMENTO[int(msg_body)-1]
             contextos[usuario] = {"etapa": "tipo", "dados": {"tipo": tipo}}
@@ -57,20 +60,34 @@ async def webhook_twilio(request: Request):
         enviar_mensagem(from_number, resposta)
         return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
 
-    # Fluxo de agendamento detalhado
+    if etapa == "humano":
+        if msg_body.lower() == "menu":
+            humano.finalizar_atendimento(usuario)
+            contextos[usuario] = {"etapa": "menu"}
+            enviar_mensagem(from_number, MENU_OPCOES)
+        elif msg_body.lower() == "sair":
+            humano.finalizar_atendimento(usuario)
+            if usuario in contextos:
+                del contextos[usuario]
+            enviar_mensagem(from_number, "Atendimento encerrado. Obrigado por utilizar nosso serviço!")
+        else:
+            humano.redirecionar_mensagem(usuario, f"Usuário: {msg_body}")
+            enviar_mensagem(from_number, "Você está sendo atendido por um atendente humano. Aguarde resposta. Para voltar ao menu digite 'menu'.")
+        return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
+
     if etapa not in ["menu", "cancelar"]:
         resposta = agenda.fluxo_agendamento(usuario, msg_body)
         if resposta.startswith("✅ Agendamento realizado!"):
             enviar_mensagem(from_number, resposta)
             contextos[usuario] = {"etapa": "aguardando_acao_final"}
         elif resposta.startswith("Vou te direcionar para um atendente humano"):
-            enviar_mensagem(from_number, resposta)
-            contextos[usuario] = {"etapa": "menu"}
+            contextos[usuario] = {"etapa": "humano"}
+            humano.registrar_pedido(usuario)
+            enviar_mensagem(from_number, "Você será direcionado para o atendimento humano. Aguarde um momento enquanto um atendente assume a conversa.\nPara voltar ao menu, digite 'menu'.")
         else:
             enviar_mensagem(from_number, resposta)
         return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
 
-    # Após agendamento, perguntar se deseja terminar ou iniciar nova conversa
     if etapa == "aguardando_acao_final":
         if msg_body.lower() == "menu":
             contextos[usuario] = {"etapa": "menu"}
@@ -82,7 +99,6 @@ async def webhook_twilio(request: Request):
             enviar_mensagem(from_number, "Deseja terminar o atendimento ou iniciar uma nova conversa?\nResponda 'menu' para nova conversa ou 'sair' para encerrar.")
         return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
 
-    # Cancelamento
     if etapa == "cancelar":
         resposta = agenda.fluxo_cancelamento(usuario, msg_body)
         if resposta.startswith("✅ Agendamento cancelado"):
@@ -92,7 +108,6 @@ async def webhook_twilio(request: Request):
             enviar_mensagem(from_number, resposta)
         return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")
 
-    # default/fallback
     enviar_mensagem(from_number, MENU_OPCOES)
     contextos[usuario] = {"etapa": "menu"}
     return PlainTextResponse("<Response></Response>", status_code=200, media_type="application/xml")

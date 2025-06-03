@@ -1,10 +1,6 @@
-from fastapi import Request, HTTPException
-from passlib.hash import bcrypt
+from app.models.user import UserModel
 from itsdangerous import URLSafeSerializer
-
-USERS = {
-    "admin": bcrypt.hash("admin123")
-}
+from fastapi import Request, HTTPException
 
 SECRET_KEY = "segredo-muito-forte"
 COOKIE_NAME = "gestor_session"
@@ -21,7 +17,7 @@ def get_current_user(request: Request):
     try:
         data = s.loads(cookie)
         user = data.get("user")
-        if user in USERS:
+        if user:
             return user
     except Exception:
         return None
@@ -34,5 +30,4 @@ def require_login(request: Request):
     return user
 
 def try_login(username, password):
-    hash_ = USERS.get(username)
-    return hash_ and bcrypt.verify(password, hash_)
+    return UserModel.autenticar(username, password)
