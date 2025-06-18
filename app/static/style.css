@@ -1,66 +1,497 @@
 body {
-    background: #f5f7fa;
-    font-family: 'Segoe UI', 'Arial', sans-serif;
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Arial, sans-serif;
 }
-.navbar {
-    box-shadow: 0 2px 18px rgba(0,0,0,0.08);
-    border-radius: 0 0 12px 12px;
-}
-.painel-card, .form-card, .chat-card, .login-box, .card {
-    border-radius: 16px;
-    box-shadow: 0 2px 18px rgba(0,0,0,0.08);
+
+/* ====== Agenda Custom Styles (agenda.html) ====== */
+
+.agenda-header {
     background: #fff;
-    border: none;
+    border-bottom: 1px solid #ddd;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
-.main-content { padding-top: 36px; margin-top: 0 !important; }
-.list-group-item, .painel-links li {
-    transition: background .2s;
-    border: none;
-    border-bottom: 1px solid #f1f3f8;
+.agenda-logo {
+    font-weight: bold;
+    color: #d93030;
 }
-.list-group-item:last-child, .painel-links li:last-child {
-    border-bottom: none;
+.agenda-header nav a {
+    margin: 0 10px;
+    color: #007bff;
+    text-decoration: none;
 }
-.list-group-item:hover, .painel-links li:hover, .card:hover {
-    background: #f1f3f8;
+.agenda-header nav a:hover {
+    text-decoration: underline;
 }
-.icon-link {
-    font-size: 1.2rem;
-    margin-right: 12px;
+
+.agenda-container {
+    display: flex;
+    margin: 18px 0;
+}
+
+.agenda-sidebar {
+    width: 240px;
+    min-width: 160px;
+    background: #fff;
+    border-right: 1px solid #eee;
+    padding: 16px 10px;
+}
+.agenda-sidebar strong {
+    font-size: 1.05em;
+    color: #d93030;
+}
+.sidebar-paciente {
+    margin: 10px 0;
+}
+.sidebar-paciente span {
     color: #0d6efd;
+    font-weight: 500;
 }
-.btn-atender { min-width: 110px; }
-.chat-box {
-    background: #f3f6fa;
-    border-radius: 10px;
-    padding: 18px;
-    min-height: 220px;
-    max-height: 400px;
-    overflow-y: auto;
-}
-.msg-block { margin-bottom: 15px; }
-.msg-user { color: #0d6efd; font-weight: 500; }
-.msg-bot, .msg-atendente { color: #16a085; }
-input:focus, textarea:focus, select:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 4px #0d6efd33;
-}
-.login-box {
-    max-width: 420px;
-    margin: 80px auto;
-    padding: 36px 32px 28px 32px;
+
+.agenda-main {
+    flex: 1;
     background: #fff;
-    border-radius: 16px;
-    box-shadow: 0 2px 18px rgba(0,0,0,0.08);
+    padding: 22px 26px 16px 26px;
+    min-width: 0;
 }
-.card-header {
-    border-radius: 16px 16px 0 0;
+.agenda-main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
 }
-.card-body {
+.agenda-main-header input {
+    max-width: 240px;
+}
+
+.agenda-weeknav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 14px;
+    gap: 12px;
+}
+.agenda-weeknav .btn-link {
+    color: #0d6efd;
+    border: 0;
+    box-shadow: none !important;
+    padding: 0 10px;
+}
+.agenda-weeknav .btn-link:focus,
+.agenda-weeknav .btn-link:hover {
+    color: #0a58ca;
+    background: #f3f3f3;
+}
+.agenda-weeknav .datespan {
+    font-weight: 500;
+    color: #4a4a4a;
+    min-width: 220px;
+    text-align: center;
+}
+
+.agenda-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    text-align: center;
+    font-weight: bold;
+    border-bottom: 1px solid #d3dae6;
+    margin-bottom: 0;
+}
+.agenda-weekdays div {
+    padding: 7px 0 7px 0;
+    font-size: 1.08em;
+    color: #3d3d3d;
+}
+.agenda-weekdays .highlight {
+    background: #fffde7;
+    color: #b38000;
+    border-radius: 6px 6px 0 0;
+}
+
+.agenda-timegrid {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    border-top: 1px solid #e2e2e2;
+}
+.agenda-hourcell, .agenda-timecell {
+    border-bottom: 1px solid #f0f2f5;
+    border-right: 1px solid #f0f2f5;
+    padding: 0.6em 0.1em;
+    min-height: 45px;
+    font-size: 0.98em;
+}
+.agenda-hourcell {
+    background: #f4f7fb;
+    color: #858585;
+    font-size: 0.97em;
+    text-align: right;
+    padding-right: 8px;
+    font-weight: bold;
+}
+.agenda-timecell:last-child {
+    border-right: none;
+}
+.agenda-event-badge {
+    background: #ffe5e5;
+    color: #c00;
+    border-radius: 6px;
+    font-size: 0.96em;
+    padding: 3px 7px;
+    margin: 2px 0;
+    cursor: pointer;
+    display: block;
+    transition: background 0.12s, color 0.12s;
+}
+.agenda-timecell .agenda-event-badge:hover {
+    background: #ffb3b3;
+    color: #800;
+}
+.agenda-lunch {
+    grid-column: 2 / span 7;
+    background: #f8f9fa;
+    color: #999;
+    text-align: center;
+    font-size: 0.95em;
+    padding: 11px 0;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.agenda-support {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
     background: #fff;
-    border-radius: 0 0 16px 16px;
+    padding: 11px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    z-index: 100;
 }
+.agenda-support img {
+    height: 45px;
+    margin-right: 10px;
+}
+
+@media (max-width: 900px) {
+    .agenda-container {
+        flex-direction: column;
+    }
+    .agenda-sidebar {
+        width: 100%;
+        min-width: 0;
+        border-right: none;
+        border-bottom: 1px solid #eee;
+    }
+    .agenda-main {
+        padding: 18px 5px 12px 5px;
+    }
+    .agenda-weeknav .datespan {
+        min-width: 120px;
+        font-size: 0.98em;
+    }
+}
+
 @media (max-width: 600px) {
-    .painel-card, .form-card, .chat-card, .login-box, .card { padding: 10px !important; }
-    .main-content { padding-top: 18px; }
+    .agenda-main {
+        padding: 9px 2px;
+    }
+    .agenda-support {
+        display: none;
+    }
+    .agenda-weekdays div {
+        font-size: 0.91em;
+    }
+    .agenda-weeknav .datespan {
+        font-size: 0.90em;
+    }
+}
+
+/* MODAL - ajuste visual */
+.modal-content {
+    border-radius: 12px;
+}
+.modal-header {
+    border-bottom: 1px solid #e3e3e3;
+}
+.modal-title {
+    font-size: 1.15em;
+    font-weight: 500;
+}
+
+/* ====== Fim Agenda Custom Styles ====== */
+
+
+/* ====== Restante do seu sistema ====== */
+
+.navbar {
+    border-bottom: 2px solid #08519c;
+}
+
+.main-content {
+    margin-top: 30px;
+    margin-bottom: 30px;
+    min-height: 80vh;
+    padding-bottom: 2rem;
+}
+
+.painel-card {
+    box-shadow: 0 2px 8px rgba(8,81,156,0.08);
+    border-radius: 12px;
+    border: none;
+}
+
+.breadcrumb {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 8px 16px;
+    margin-bottom: 18px;
+}
+
+.card-header {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.calendar-table th,
+.calendar-table td {
+    text-align: center;
+    vertical-align: top;
+    height: 110px;
+    padding: 6px 2px;
+    font-size: 1em;
+    min-width: 110px;
+}
+
+.calendar-table .hour-label,
+.table.calendar-table th.hour-label,
+.table.calendar-table td.hour-label {
+    width: 60px;
+    background: #f8f9fa;
+    color: #333;
+    font-weight: bold;
+    border-right: 1px solid #e1e1e1;
+    min-width: 80px;
+}
+
+.calendar-table tr {
+    height: 68px;
+}
+
+.event-badge {
+    cursor: pointer;
+    display: block;
+    margin: 4px auto;
+    padding: 7px 5px;
+    font-size: 0.93rem;
+    border-radius: 7px;
+    background-color: #0d6efd;
+    color: #fff;
+    transition: background 0.15s, color 0.15s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    white-space: normal;
+    text-align: left;
+}
+
+.event-badge:hover,
+.event-badge:focus {
+    background-color: #084298;
+    color: #fff;
+    text-decoration: none;
+}
+
+.sidebar-table td,
+.sidebar-table th {
+    vertical-align: middle;
+    font-size: 0.98em;
+    padding: 6px 7px;
+}
+
+.sidebar-table .event-badge {
+    background: none !important;
+    color: #0d6efd !important;
+    padding: 0;
+    font-size: inherit;
+    box-shadow: none;
+    margin: 0;
+    display: inline;
+}
+
+.sidebar-table .event-badge:hover {
+    color: #082c64 !important;
+    text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+    .calendar-table th,
+    .calendar-table td {
+        font-size: 0.95rem;
+        padding: 4px 1px;
+        height: 75px;
+    }
+    .col-lg-9,
+    .col-lg-3 {
+        flex: 100%;
+        max-width: 100%;
+    }
+    .calendar-nav {
+        font-size: 0.95em;
+        gap: 0.6rem;
+    }
+    .calendar-nav span.datespan {
+        min-width: 120px;
+        font-size: 0.95em;
+    }
+}
+
+.table > :not(caption) > * > * {
+    background-color: transparent;
+}
+
+.table-bordered > :not(caption) > * > * {
+    border-color: #dee2e6;
+}
+
+.table-sm > :not(caption) > * > * {
+    padding: 0.30rem 0.50rem;
+}
+
+.card {
+    margin-bottom: 18px;
+}
+
+input[type="date"].form-control {
+    max-width: 170px;
+}
+
+.btn-outline-info, .btn-outline-warning, .btn-outline-danger {
+    min-width: 38px;
+}
+
+.badge.bg-info {
+    background-color: #0dcaf0 !important;
+    color: #0a2240 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+    color: #fff !important;
+}
+
+.badge.bg-primary {
+    background-color: #0d6efd !important;
+    color: #fff !important;
+}
+
+.form-label.small {
+    font-size: 0.91rem;
+    font-weight: 500;
+    color: #084298;
+}
+
+.alert-info {
+    background-color: #e8f4fa;
+    color: #084298;
+    border-color: #b6e0fe;
+}
+
+input.form-control, select.form-control, textarea.form-control {
+    border-radius: 7px;
+}
+
+.btn, .form-control {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.card-header.bg-info, .card-header.bg-success, .card-header.bg-primary, .card-header.bg-secondary {
+    letter-spacing: 0.03em;
+}
+
+.modal-content {
+    border-radius: 12px;
+}
+
+@media (max-width: 600px) {
+    .calendar-table th,
+    .calendar-table td {
+        font-size: 0.88rem;
+        padding: 2px 0;
+        height: 52px;
+    }
+    .main-content {
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+}
+
+/* MODAL AGENDAMENTO DADOS */
+.modal-label {
+    font-size: 0.95rem;
+    color: #666;
+    margin-bottom: 2px;
+}
+.modal-value {
+    font-size: 1.08rem;
+    font-weight: 500;
+    color: #222;
+}
+
+/* NAVEGAÇÃO DE CALENDÁRIO SUPER CLEAN */
+.calendar-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1.2rem;
+}
+.calendar-nav span.datespan {
+    min-width: 220px;
+    text-align: center;
+    font-size: 1em;
+    color: #5c636a;
+}
+.calendar-nav .btn-link {
+    color: #0d6efd;
+    border: 0;
+    box-shadow: none !important;
+}
+.calendar-nav .btn-link:focus, .calendar-nav .btn-link:hover {
+    color: #0a58ca;
+    background: #f3f3f3;
+}
+
+/* Ajustes responsivos dos cards */
+@media (max-width: 991px) {
+  .col-lg-9, .col-lg-3 {
+    flex: 100%;
+    max-width: 100%;
+  }
+  .painel-card {
+    margin-bottom: 1.2rem !important;
+  }
+}
+
+/* Navbar ajustes botão voltar */
+.navbar .navbar-brand.btn {
+    font-size: 1em;
+    padding: 4px 13px !important;
+    margin-right: 1.2rem;
+}
+
+.navbar .navbar-brand.btn i {
+    margin-right: 4px;
+}
+
+.navbar .navbar-brand.flex-grow-1 {
+    font-weight: 500;
+}
+
+/* Foco nos campos de formulário */
+.form-control:focus, .form-select:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 0.13rem rgba(13,110,253,.10);
 }
